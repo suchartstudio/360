@@ -57,9 +57,12 @@
           <div class="flex justify-between items-center mb-4 border-b pb-2">
             <h2 class="text-xl font-semibold">2. จัดการห้อง & จุดมาร์ค</h2>
             <!-- Dropdown เลือกห้อง -->
-            <select id="roomSelector" class="p-2 border rounded bg-blue-50 text-blue-700 font-semibold focus:outline-none">
-              <option value="">-- เลือกห้องเพื่อแก้ไข --</option>
-            </select>
+            <div class="flex gap-2">
+              <select id="roomSelector" class="p-2 border rounded bg-blue-50 text-blue-700 font-semibold focus:outline-none">
+                <option value="">-- เลือกห้องเพื่อแก้ไข --</option>
+              </select>
+              <button id="deleteRoomBtn" class="hidden bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 transition shadow text-sm font-bold">ลบห้องนี้</button>
+            </div>
           </div>
 
           <!-- ฟอร์มเพิ่ม Hotspot (จะแสดงเมื่อเลือกห้องแล้ว) -->
@@ -84,6 +87,7 @@
             <select id="mediaType" class="w-full p-2 border rounded mb-3 bg-gray-50">
               <option value="info">ข้อความ / รูปภาพ / วิดีโอ (Popup)</option>
               <option value="link">จุดเชื่อมโยง (วาร์ปไปห้องอื่น)</option>
+              <option value="embed">จอทีวีฝังในห้อง (YouTube เล่นอัตโนมัติ)</option>
             </select>
 
             <div id="targetRoomContainer" class="hidden">
@@ -134,7 +138,7 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, push, set, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+    import { getDatabase, ref, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD5o9aY3La7nK7gCHbjM2ToolmnoE0y-is",
@@ -182,12 +186,14 @@
       
       if (!roomId) {
         form.classList.add('opacity-50', 'pointer-events-none');
+        document.getElementById('deleteRoomBtn').classList.add('hidden');
         if(viewer) viewer.destroy();
         document.getElementById('shareLink').value = '';
         return;
       }
 
       form.classList.remove('opacity-50', 'pointer-events-none');
+      document.getElementById('deleteRoomBtn').classList.remove('hidden');
       const room = currentRooms[roomId];
       
       // สร้าง Link แชร์แบบปลอดภัย ป้องกันบั๊ก adminindex
@@ -265,6 +271,12 @@
       } else {
         document.getElementById('targetRoomContainer').classList.add('hidden');
         document.getElementById('contentContainer').classList.remove('hidden');
+        
+        if (type === 'embed') {
+          document.getElementById('mediaContent').placeholder = "ใส่ URL วิดีโอ YouTube เท่านั้น (เช่น https://youtu.be/...)";
+        } else {
+          document.getElementById('mediaContent').placeholder = "ข้อความยาวๆ, URL รูป, หรือ URL Youtube";
+        }
       }
     });
 
@@ -355,6 +367,26 @@
         btn.innerText = "คัดลอก";
         btn.classList.replace('bg-green-600', 'bg-gray-700');
       }, 2000);
+    });
+
+    // 5. ระบบลบห้อง
+    document.getElementById('deleteRoomBtn').addEventListener('click', async () => {
+      const roomId = document.getElementById('roomSelector').value;
+      if(!roomId) return;
+
+      const confirmDelete = confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบห้อง "${currentRooms[roomId].name}"?\nการกระทำนี้ไม่สามารถกู้คืนได้ และจุดมาร์คทั้งหมดในห้องจะหายไป!`);
+      
+      if(confirmDelete) {
+        try {
+          await remove(ref(db, `exhibition_rooms/${roomId}`));
+          alert("ลบห้องเรียบร้อยแล้ว");
+          document.getElementById('roomSelector').value = "";
+          document.getElementById('roomSelector').dispatchEvent(new Event('change'));
+        } catch (err) {
+          alert("เกิดข้อผิดพลาดในการลบห้อง");
+          console.error(err);
+        }
+      }
     });
   </script>
 </body>
