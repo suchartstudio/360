@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Virtual Exhibition 360°</title>
+  <title>360 Virtual Exhibition</title>
   
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
-  
+  <!-- Tailwind & Font -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <!-- Pannellum -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
   
   <style>
     body { font-family: 'Chakra Petch', sans-serif; margin: 0; overflow: hidden; background: #000; }
@@ -21,39 +23,84 @@
       background: #111; display: flex; flex-direction: column;
       align-items: center; justify-content: center; color: white;
     }
-    
-    /* แต่งจุดมาร์ค */
-    .pnlm-hotspot-base { animation: bounce 2s infinite; }
-    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
+    /* 
+      การตกแต่งจุดมาร์ค (Hotspot) แบบกำหนดเอง 
+      **สำคัญ**: ห้ามใช้ transform ในการทำ Animation เด็ดขาด เพราะจะไปตีกับการคำนวณตำแหน่งของ Pannellum
+    */
+    .custom-hotspot {
+      width: 32px;
+      height: 32px;
+      background-color: rgba(59, 130, 246, 0.85); /* สีฟ้า Tailwind */
+      border-radius: 50%;
+      border: 2px solid white;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      animation: pulseGlow 2s infinite;
+      transition: background-color 0.3s;
+    }
+
+    .custom-hotspot:hover {
+      background-color: rgba(239, 68, 68, 0.9); /* เปลี่ยนเป็นสีแดงเมื่อเอาเมาส์ชี้ */
+    }
+
+    /* อนิเมชันเรืองแสง แทนการเด้งขึ้นลง */
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    }
+
+    /* Tooltip ข้อความที่โผล่มาตอนชี้จุดมาร์ค */
+    .custom-tooltip span {
+      visibility: hidden;
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%); /* ใช้ transform ในลูกได้ เพราะไม่ใช่ตัวหลักที่ Pannellum คุม */
+      background-color: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      text-align: center;
+      padding: 6px 12px;
+      border-radius: 6px;
+      white-space: nowrap;
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .custom-hotspot:hover span {
+      visibility: visible;
+    }
   </style>
 </head>
 <body>
 
+  <!-- จอโหลดดิง -->
   <div id="loadingScreen">
     <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mb-4"></div>
-    <h2 class="text-xl font-semibold tracking-wider">กำลังโหลดนิทรรศการ...</h2>
+    <h2 class="text-2xl font-bold">กำลังโหลดนิทรรศการ...</h2>
   </div>
 
+  <!-- จุดแสดงผล 360 -->
   <div id="panorama"></div>
 
-  <!-- Modal สำหรับแสดงเนื้อหา -->
-  <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
-    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 relative transform scale-95 transition-transform duration-300" id="modalBox">
-      <button id="closeModal" class="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 shadow-lg">&times;</button>
-      <h3 id="modalTitle" class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4"></h3>
-      <div id="modalContent" class="text-center overflow-hidden rounded-lg"></div>
+  <!-- Modal สำหรับแสดงเนื้อหา Popup -->
+  <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4 transition-opacity duration-300">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 relative shadow-2xl">
+      <!-- ปุ่มปิด -->
+      <button id="closeModal" class="absolute top-3 right-4 text-3xl font-bold text-gray-400 hover:text-red-500 transition">&times;</button>
+      
+      <h2 id="modalTitle" class="text-2xl font-bold text-blue-700 mb-4 pr-8 border-b pb-2"></h2>
+      
+      <!-- พื้นที่แสดงเนื้อหา (รูป/วิดีโอ/ข้อความ) -->
+      <div id="modalBody" class="mt-4 overflow-y-auto max-h-[60vh]"></div>
     </div>
-  </div>
-
-  <!-- ปุ่มช่วยเหลือ / สถานะ -->
-  <div class="absolute top-4 left-4 z-10 bg-white bg-opacity-90 px-4 py-2 rounded-lg shadow-lg">
-    <p class="text-sm font-semibold text-gray-700">คลิกและลากเพื่อหมุนมุมมอง | คลิกที่ไอคอนเพื่อดูเนื้อหา</p>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
 
+    // ตั้งค่า Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyD5o9aY3La7nK7gCHbjM2ToolmnoE0y-is",
       authDomain: "post-it-kk-election.firebaseapp.com",
@@ -67,128 +114,146 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    let viewer;
-    
-    // ตรวจสอบ URL Parameter เพื่อดูว่าเข้ามาห้องไหน
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialRoomId = urlParams.get('room');
+    let viewer = null;
 
-    // โหลดข้อมูลแบบ Once (ไม่ใช้ Real-time ป้องกันกล้องรีเซ็ตเวลาคนอื่นเพิ่มจุด)
-    get(ref(db, 'exhibition_rooms')).then((snapshot) => {
-      if (snapshot.exists()) {
-        const roomsData = snapshot.val();
-        document.getElementById('loadingScreen').style.display = 'none';
-        initExhibition(roomsData);
+    // อ่านค่าจาก URL เช่น ?room=-O123456
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetRoomId = urlParams.get('room');
+
+    // ดึงข้อมูลจาก Firebase
+    onValue(ref(db, 'exhibition_rooms'), (snapshot) => {
+      const data = snapshot.val();
+      if(data) {
+        initExhibition(data);
       } else {
-        document.getElementById('loadingScreen').innerHTML = "<h2 class='text-red-500'>ยังไม่มีข้อมูลห้องนิทรรศการ</h2>";
+        document.getElementById('loadingScreen').innerHTML = "<h2 class='text-xl text-red-400'>ไม่พบข้อมูลนิทรรศการ</h2>";
       }
-    }).catch((error) => {
-      console.error(error);
-      alert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้");
     });
 
     function initExhibition(roomsData) {
       const scenes = {};
-      
-      // หาห้องเริ่มต้น: ถ้ามีค่าจาก URL และห้องนั้นมีอยู่จริง ให้ใช้ห้องนั้น ถ้าไม่มีใช้ห้องแรกที่เจอ
-      let startScene = initialRoomId && roomsData[initialRoomId] ? initialRoomId : Object.keys(roomsData)[0];
+      let firstScene = null;
 
       Object.keys(roomsData).forEach(roomId => {
+        if(!firstScene) firstScene = roomId; // เก็บห้องแรกไว้เป็นค่าเริ่มต้น
+        
         const room = roomsData[roomId];
         
+        // สร้างฉากแต่ละห้อง
         scenes[roomId] = {
           type: "equirectangular",
           panorama: room.imageUrl,
           autoLoad: true,
-          hotSpots: createHotspots(room.hotspots, roomId)
+          hotSpots: createHotspots(room.hotspots)
         };
       });
 
+      // ถ้าใน URL มีระบุห้องเป้าหมาย และห้องนั้นมีอยู่จริง ให้เปิดห้องนั้นก่อน
+      const startingScene = (targetRoomId && scenes[targetRoomId]) ? targetRoomId : firstScene;
+
+      // ถ้ามี viewer เก่าอยู่ให้ลบทิ้งก่อน
+      if(viewer) viewer.destroy();
+
+      // ปิดหน้าโหลดดิ้ง
+      document.getElementById('loadingScreen').style.display = 'none';
+
+      // เริ่มทำงาน Pannellum
       viewer = pannellum.viewer('panorama', {
-        default: { 
-          firstScene: startScene, 
-          sceneFadeDuration: 1500, // เอฟเฟกต์เฟดตอนเปลี่ยนห้อง 1.5 วิ
-          autoLoad: true
+        default: {
+          firstScene: startingScene,
+          sceneFadeDuration: 1000 // เอฟเฟกต์เฟดตอนเปลี่ยนห้อง
         },
         scenes: scenes
       });
-      
-      // เมื่อเปลี่ยนห้อง ให้อัปเดต URL เพื่อให้ผู้ใช้แชร์หน้านั้นๆ ได้ทันที (Optional)
-      viewer.on('scenechange', (sceneId) => {
-        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + sceneId;
-        window.history.pushState({path:newUrl}, '', newUrl);
-      });
     }
 
-    // สร้างจุดมาร์ค
-    function createHotspots(hotspotsData, currentRoomId) {
+    function createHotspots(hotspotsData) {
       if(!hotspotsData) return [];
+      
       return Object.values(hotspotsData).map(hs => {
-        
+        // กรณีเป็นจุดเชื่อมโยงไปห้องอื่น
         if(hs.type === 'link') {
           return {
-            pitch: hs.pitch, yaw: hs.yaw,
+            pitch: hs.pitch, 
+            yaw: hs.yaw,
             type: "scene",
-            text: hs.text || "เดินไปยังจุดต่อไป",
+            text: hs.text || "ไปยังห้องถัดไป",
             sceneId: hs.targetRoomId
           };
         }
         
+        // กรณีเป็นสื่อ (Info) - ใช้ Custom HTML สร้างปุ่ม
         return {
-          pitch: hs.pitch, yaw: hs.yaw,
-          type: "info",
-          text: hs.text || "ดูข้อมูล",
+          pitch: hs.pitch, 
+          yaw: hs.yaw,
+          cssClass: "custom-hotspot custom-tooltip",
+          createTooltipFunc: hotspotTooltip,
+          createTooltipArgs: { text: hs.text || "รายละเอียดเพิ่มเติม" },
           clickHandlerFunc: showMediaModal,
           clickHandlerArgs: { content: hs.content, text: hs.text }
         };
       });
     }
 
-    // --- ระบบ Modal (Popup เนื้อหา) ---
-    const modal = document.getElementById('mediaModal');
-    const modalBox = document.getElementById('modalBox');
-    
-    document.getElementById('closeModal').addEventListener('click', closeModalUI);
-    modal.addEventListener('click', (e) => {
-      if(e.target === modal) closeModalUI(); // ปิดเมื่อคลิกพื้นที่สีดำรอบนอก
-    });
-
-    function closeModalUI() {
-      modal.classList.remove('opacity-100');
-      modalBox.classList.remove('scale-100');
-      modalBox.classList.add('scale-95');
-      setTimeout(() => {
-        modal.classList.add('hidden', 'pointer-events-none');
-        document.getElementById('modalContent').innerHTML = ""; // หยุดเล่นวิดีโอ/เพลง
-      }, 300);
+    // ฟังก์ชันสร้าง Tooltip ให้จุดมาร์ค
+    function hotspotTooltip(hotSpotDiv, args) {
+      hotSpotDiv.classList.add('custom-hotspot');
+      var span = document.createElement('span');
+      span.innerHTML = args.text;
+      hotSpotDiv.appendChild(span);
     }
 
-    function showMediaModal(evt, args) {
-      document.getElementById('modalTitle').innerText = args.text || "รายละเอียด";
-      const contentStr = args.content || "";
-      let html = '';
+    // ระบบจัดการ Modal Popup
+    const modal = document.getElementById('mediaModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // ปิด Modal
+    document.getElementById('closeModal').addEventListener('click', () => {
+      modal.classList.add('hidden');
+      modalBody.innerHTML = ''; // เคลียร์เนื้อหาเพื่อหยุดวิดีโอ
+    });
 
-      // เช็คว่าเป็นลิงก์ภาพ หรือ Youtube หรือข้อความธรรมดา
-      if (contentStr.match(/\.(jpeg|jpg|gif|png)$/i)) {
-        html = `<img src="${contentStr}" class="w-full h-auto max-h-[60vh] object-contain mx-auto">`;
-      } else if (contentStr.includes("youtube.com") || contentStr.includes("youtu.be")) {
-        // แปลง Youtube Link เป็น Embed (ทำแบบลวกๆ สำหรับตัวอย่าง)
-        const videoId = contentStr.split('v=')[1]?.substring(0,11) || contentStr.split('/').pop().substring(0,11);
-        html = `<div class="aspect-w-16 aspect-h-9"><iframe class="w-full h-64 md:h-96 rounded" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
-      } else {
-        // ถือว่าเป็นข้อความธรรมดา
-        html = `<p class="text-lg text-gray-700 text-left whitespace-pre-wrap">${contentStr}</p>`;
+    // ปิด Modal เมื่อคลิกพื้นที่ว่าง
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) {
+        modal.classList.add('hidden');
+        modalBody.innerHTML = '';
       }
-      
-      document.getElementById('modalContent').innerHTML = html;
-      
-      // Animate โชว์ Modal
-      modal.classList.remove('hidden', 'pointer-events-none');
-      setTimeout(() => {
-        modal.classList.add('opacity-100');
-        modalBox.classList.remove('scale-95');
-        modalBox.classList.add('scale-100');
-      }, 10);
+    });
+
+    // แสดงเนื้อหาเมื่อคลิกจุดมาร์ค
+    function showMediaModal(evt, args) {
+      modalTitle.innerText = args.text || "ข้อมูลเพิ่มเติม";
+      const content = args.content || "";
+      let html = "";
+
+      // 1. ตรวจสอบว่าเป็นไฟล์รูปภาพหรือไม่
+      if (content.match(/\.(jpeg|jpg|gif|png|webp)$/i)) {
+        html = `<img src="${content}" class="w-full rounded shadow-md max-h-[60vh] object-contain">`;
+      } 
+      // 2. ตรวจสอบว่าเป็น URL ของ Youtube หรือไม่
+      else if (content.includes('youtube.com') || content.includes('youtu.be')) {
+        let videoId = content.split('v=')[1] || content.split('/').pop();
+        const ampersandPosition = videoId.indexOf('&');
+        if (ampersandPosition !== -1) {
+          videoId = videoId.substring(0, ampersandPosition);
+        }
+        html = `<div class="aspect-w-16 aspect-h-9">
+                  <iframe class="w-full h-64 md:h-96 rounded shadow-md" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allowfullscreen></iframe>
+                </div>`;
+      } 
+      // 3. ตรวจสอบว่าเป็นไฟล์ Video MP4
+      else if (content.match(/\.(mp4|webm)$/i)) {
+        html = `<video controls autoplay class="w-full rounded shadow-md"><source src="${content}"></video>`;
+      } 
+      // 4. ถ้าไม่ใช่ทั้งหมด ให้แสดงเป็นข้อความธรรมดา
+      else {
+        html = `<p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-lg">${content}</p>`;
+      }
+
+      modalBody.innerHTML = html;
+      modal.classList.remove('hidden');
     }
   </script>
 </body>
