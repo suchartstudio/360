@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>360 Virtual Exhibition</title>
+  
+  <!-- Pannellum CSS & JS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Chakra Petch', sans-serif; margin: 0; overflow: hidden; }
+    #panorama { width: 100vw; height: 100vh; }
+    /* สไตล์สำหรับจุดมาร์คแบบกำหนดเอง */
+    .custom-hotspot {
+      height: 30px; width: 30px; background: rgba(59, 130, 246, 0.8);
+      border-radius: 50%; border: 2px solid white; cursor: pointer;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="panorama"></div>
+
+  <!-- Modal สำหรับแสดงเนื้อหา (Video/Image/Text) -->
+  <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-lg max-w-2xl w-full p-6 relative">
+      <button id="closeModal" class="absolute top-2 right-4 text-2xl font-bold text-gray-600 hover:text-black">&times;</button>
+      <div id="modalContent" class="mt-4 text-center"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5o9aY3La7nK7gCHbjM2ToolmnoE0y-is",
+      authDomain: "post-it-kk-election.firebaseapp.com",
+      databaseURL: "https://post-it-kk-election-default-rtdb.firebaseio.com",
+      projectId: "post-it-kk-election",
+      storageBucket: "post-it-kk-election.firebasestorage.app",
+      messagingSenderId: "323275742590",
+      appId: "1:323275742590:web:a491412b699c919146672f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let viewer;
+
+    // ดึงข้อมูลห้องทั้งหมดจาก Firebase
+    onValue(ref(db, 'exhibition_rooms'), (snapshot) => {
+      const data = snapshot.val();
+      if(data) {
+        initExhibition(data);
+      }
+    });
+
+    function initExhibition(roomsData) {
+      // แปลงข้อมูล Firebase เป็นรูปแบบ Scenes ของ Pannellum
+      const scenes = {};
+      let firstScene = null;
+
+      Object.keys(roomsData).forEach(roomId => {
+        if(!firstScene) firstScene = roomId;
+        const room = roomsData[roomId];
+        
+        scenes[roomId] = {
+          type: "equirectangular",
+          panorama: room.imageUrl,
+          autoLoad: true,
+          hotSpots: createHotspots(room.hotspots, roomId)
+        };
+      });
+
+      if(viewer) viewer.destroy(); // เคลียร์ตัวเก่าถ้ามีอัปเดตแบบเรียลไทม์
+
+      viewer = pannellum.viewer('panorama', {
+        default: { firstScene: firstScene, sceneFadeDuration: 1000 },
+        scenes: scenes
+      });
+    }
+
+    function createHotspots(hotspotsData, currentRoomId) {
+      if(!hotspotsData) return [];
+      return Object.values(hotspotsData).map(hs => {
+        // ถ้าเป็นลิงก์ข้ามห้อง
+        if(hs.type === 'link') {
+          return {
+            pitch: hs.pitch, yaw: hs.yaw,
+            type: "scene",
+            text: hs.text || "ไปยังห้องถัดไป",
+            sceneId: hs.targetRoomId
+          };
+        }
+        // ถ้าเป็นสื่ออื่นๆ (วิดีโอ, ภาพ, ข้อความ) จะใช้ custom info
+        return {
+          pitch: hs.pitch, yaw: hs.yaw,
+          type: "info",
+          text: "คลิกเพื่อดูเนื้อหา",
+          clickHandlerFunc: showMediaModal,
+          clickHandlerArgs: { type: hs.type, content: hs.content, text: hs.text }
+        };
+      });
+    }
+
+    // ฟังก์ชันแสดง Modal
+    const modal = document.getElementById('mediaModal');
+    const modalContent = document.getElementById('modalContent');
+    document.getElementById('closeModal').addEventListener('click', () => modal.classList.add('hidden'));
+
+    function showMediaModal(evt, args) {
+      let html = '';
+      if(args.type === 'video') {
+        html = `<video controls class="w-full rounded"><source src="${args.content}" type="video/mp4"></video>`;
+      } else if(args.type === 'image') {
+        html = `<img src="${args.content}" class="w-full rounded object-contain max-h-[70vh]">`;
+      } else if(args.type === 'audio') {
+        html = `<audio controls class="w-full mt-4"><source src="${args.content}" type="audio/mpeg"></audio>`;
+      }
+      
+      html += `<p class="mt-4 text-lg">${args.text || ''}</p>`;
+      modalContent.innerHTML = html;
+      modal.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

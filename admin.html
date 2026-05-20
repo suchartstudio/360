@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - 360 Virtual Exhibition</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Chakra Petch', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-100 p-6">
+  <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-lg">
+    <h1 class="text-2xl font-bold mb-4 text-blue-600">จัดการนิทรรศการ 360°</h1>
+    
+    <!-- ฟอร์มสร้างห้องและอัปโหลดรูป -->
+    <div class="mb-6 p-4 border rounded bg-gray-50">
+      <h2 class="text-xl font-semibold mb-2">1. สร้างห้องใหม่</h2>
+      <input type="text" id="roomName" placeholder="ชื่อห้องนิทรรศการ" class="w-full p-2 border rounded mb-2">
+      <input type="file" id="imageUpload" accept="image/*" class="w-full p-2 border rounded mb-2">
+      <button id="uploadBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">อัปโหลดและสร้างห้อง</button>
+      <p id="uploadStatus" class="text-sm text-gray-500 mt-2"></p>
+    </div>
+
+    <!-- ฟอร์มสร้างจุดมาร์ค (เนื้อหา) -->
+    <div class="mb-6 p-4 border rounded bg-gray-50">
+      <h2 class="text-xl font-semibold mb-2">2. เพิ่มจุดมาร์ค (Hotspot)</h2>
+      <input type="text" id="targetRoomId" placeholder="ID ห้องเป้าหมาย (ถ้าเป็นมาร์คสำหรับเชื่อมห้อง)" class="w-full p-2 border rounded mb-2 text-sm">
+      <div class="grid grid-cols-2 gap-2 mb-2">
+        <input type="number" id="pitch" placeholder="Pitch (มุมก้มเงย)" class="p-2 border rounded">
+        <input type="number" id="yaw" placeholder="Yaw (มุมซ้ายขวา)" class="p-2 border rounded">
+      </div>
+      <select id="mediaType" class="w-full p-2 border rounded mb-2">
+        <option value="text">ข้อความ (Text)</option>
+        <option value="image">รูปภาพ (Image)</option>
+        <option value="video">วิดีโอ (Video URL/YouTube Embed)</option>
+        <option value="audio">เสียง (Audio URL)</option>
+        <option value="link">เชื่อมโยงไปยังห้องอื่น (Scene Link)</option>
+      </select>
+      <textarea id="mediaContent" placeholder="ข้อความรายละเอียด หรือ URL ของสื่อ" class="w-full p-2 border rounded mb-2"></textarea>
+      <button id="addHotspotBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">บันทึกจุดมาร์ค</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD5o9aY3La7nK7gCHbjM2ToolmnoE0y-is",
+      authDomain: "post-it-kk-election.firebaseapp.com",
+      databaseURL: "https://post-it-kk-election-default-rtdb.firebaseio.com",
+      projectId: "post-it-kk-election",
+      storageBucket: "post-it-kk-election.firebasestorage.app",
+      messagingSenderId: "323275742590",
+      appId: "1:323275742590:web:a491412b699c919146672f"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // อัปโหลดขึ้น Cloudinary
+    document.getElementById('uploadBtn').addEventListener('click', async () => {
+      const file = document.getElementById('imageUpload').files[0];
+      const roomName = document.getElementById('roomName').value;
+      if (!file || !roomName) return alert("กรุณาใส่ชื่อห้องและเลือกไฟล์");
+
+      const status = document.getElementById('uploadStatus');
+      status.innerText = "กำลังอัปโหลดไปยัง Cloudinary...";
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'khonkaen_preset');
+
+      try {
+        const res = await fetch('https://api.cloudinary.com/v1_1/dk0ypev4m/image/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        
+        // บันทึก URL ลง Firebase
+        const roomRef = push(ref(db, 'exhibition_rooms'));
+        await set(roomRef, {
+          name: roomName,
+          imageUrl: data.secure_url,
+          hotspots: [] // เตรียม array ไว้เก็บจุดมาร์ค
+        });
+        
+        status.innerText = `สร้างห้องสำเร็จ! ID: ${roomRef.key} (ก๊อปปี้ ID นี้ไว้สำหรับเชื่อมห้อง)`;
+        document.getElementById('targetRoomId').value = roomRef.key;
+      } catch (err) {
+        status.innerText = "เกิดข้อผิดพลาดในการอัปโหลด";
+        console.error(err);
+      }
+    });
+
+    // ส่วนของการบันทึก Hotspot ลง Firebase สามารถเขียนโค้ด push data ไปยัง `exhibition_rooms/${roomId}/hotspots` ได้เลย
+  </script>
+</body>
+</html>
