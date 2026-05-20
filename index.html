@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>360 Virtual Exhibition</title>
+  <title>Virtual Exhibition 360°</title>
   
-  <!-- Pannellum CSS & JS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
   
@@ -13,36 +12,47 @@
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
   
   <style>
-    body { font-family: 'Chakra Petch', sans-serif; margin: 0; overflow: hidden; }
+    body { font-family: 'Chakra Petch', sans-serif; margin: 0; overflow: hidden; background: #000; }
     #panorama { width: 100vw; height: 100vh; }
-    /* สไตล์สำหรับจุดมาร์คแบบกำหนดเอง */
-    .custom-hotspot {
-      height: 30px; width: 30px; background: rgba(59, 130, 246, 0.8);
-      border-radius: 50%; border: 2px solid white; cursor: pointer;
-      animation: pulse 2s infinite;
+    
+    /* Loading UI */
+    #loadingScreen {
+      position: absolute; inset: 0; z-index: 100;
+      background: #111; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: white;
     }
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-      70% { box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-    }
+    
+    /* แต่งจุดมาร์ค */
+    .pnlm-hotspot-base { animation: bounce 2s infinite; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
   </style>
 </head>
 <body>
 
+  <div id="loadingScreen">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mb-4"></div>
+    <h2 class="text-xl font-semibold tracking-wider">กำลังโหลดนิทรรศการ...</h2>
+  </div>
+
   <div id="panorama"></div>
 
-  <!-- Modal สำหรับแสดงเนื้อหา (Video/Image/Text) -->
-  <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-lg max-w-2xl w-full p-6 relative">
-      <button id="closeModal" class="absolute top-2 right-4 text-2xl font-bold text-gray-600 hover:text-black">&times;</button>
-      <div id="modalContent" class="mt-4 text-center"></div>
+  <!-- Modal สำหรับแสดงเนื้อหา -->
+  <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-80 hidden flex items-center justify-center z-50 p-4 transition-opacity duration-300 opacity-0 pointer-events-none">
+    <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-6 relative transform scale-95 transition-transform duration-300" id="modalBox">
+      <button id="closeModal" class="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold hover:bg-red-600 shadow-lg">&times;</button>
+      <h3 id="modalTitle" class="text-2xl font-bold text-gray-800 border-b pb-2 mb-4"></h3>
+      <div id="modalContent" class="text-center overflow-hidden rounded-lg"></div>
     </div>
+  </div>
+
+  <!-- ปุ่มช่วยเหลือ / สถานะ -->
+  <div class="absolute top-4 left-4 z-10 bg-white bg-opacity-90 px-4 py-2 rounded-lg shadow-lg">
+    <p class="text-sm font-semibold text-gray-700">คลิกและลากเพื่อหมุนมุมมอง | คลิกที่ไอคอนเพื่อดูเนื้อหา</p>
   </div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
-    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
+    import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyD5o9aY3La7nK7gCHbjM2ToolmnoE0y-is",
@@ -58,22 +68,32 @@
     const db = getDatabase(app);
 
     let viewer;
+    
+    // ตรวจสอบ URL Parameter เพื่อดูว่าเข้ามาห้องไหน
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialRoomId = urlParams.get('room');
 
-    // ดึงข้อมูลห้องทั้งหมดจาก Firebase
-    onValue(ref(db, 'exhibition_rooms'), (snapshot) => {
-      const data = snapshot.val();
-      if(data) {
-        initExhibition(data);
+    // โหลดข้อมูลแบบ Once (ไม่ใช้ Real-time ป้องกันกล้องรีเซ็ตเวลาคนอื่นเพิ่มจุด)
+    get(ref(db, 'exhibition_rooms')).then((snapshot) => {
+      if (snapshot.exists()) {
+        const roomsData = snapshot.val();
+        document.getElementById('loadingScreen').style.display = 'none';
+        initExhibition(roomsData);
+      } else {
+        document.getElementById('loadingScreen').innerHTML = "<h2 class='text-red-500'>ยังไม่มีข้อมูลห้องนิทรรศการ</h2>";
       }
+    }).catch((error) => {
+      console.error(error);
+      alert("ไม่สามารถเชื่อมต่อฐานข้อมูลได้");
     });
 
     function initExhibition(roomsData) {
-      // แปลงข้อมูล Firebase เป็นรูปแบบ Scenes ของ Pannellum
       const scenes = {};
-      let firstScene = null;
+      
+      // หาห้องเริ่มต้น: ถ้ามีค่าจาก URL และห้องนั้นมีอยู่จริง ให้ใช้ห้องนั้น ถ้าไม่มีใช้ห้องแรกที่เจอ
+      let startScene = initialRoomId && roomsData[initialRoomId] ? initialRoomId : Object.keys(roomsData)[0];
 
       Object.keys(roomsData).forEach(roomId => {
-        if(!firstScene) firstScene = roomId;
         const room = roomsData[roomId];
         
         scenes[roomId] = {
@@ -84,55 +104,91 @@
         };
       });
 
-      if(viewer) viewer.destroy(); // เคลียร์ตัวเก่าถ้ามีอัปเดตแบบเรียลไทม์
-
       viewer = pannellum.viewer('panorama', {
-        default: { firstScene: firstScene, sceneFadeDuration: 1000 },
+        default: { 
+          firstScene: startScene, 
+          sceneFadeDuration: 1500, // เอฟเฟกต์เฟดตอนเปลี่ยนห้อง 1.5 วิ
+          autoLoad: true
+        },
         scenes: scenes
+      });
+      
+      // เมื่อเปลี่ยนห้อง ให้อัปเดต URL เพื่อให้ผู้ใช้แชร์หน้านั้นๆ ได้ทันที (Optional)
+      viewer.on('scenechange', (sceneId) => {
+        const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + sceneId;
+        window.history.pushState({path:newUrl}, '', newUrl);
       });
     }
 
+    // สร้างจุดมาร์ค
     function createHotspots(hotspotsData, currentRoomId) {
       if(!hotspotsData) return [];
       return Object.values(hotspotsData).map(hs => {
-        // ถ้าเป็นลิงก์ข้ามห้อง
+        
         if(hs.type === 'link') {
           return {
             pitch: hs.pitch, yaw: hs.yaw,
             type: "scene",
-            text: hs.text || "ไปยังห้องถัดไป",
+            text: hs.text || "เดินไปยังจุดต่อไป",
             sceneId: hs.targetRoomId
           };
         }
-        // ถ้าเป็นสื่ออื่นๆ (วิดีโอ, ภาพ, ข้อความ) จะใช้ custom info
+        
         return {
           pitch: hs.pitch, yaw: hs.yaw,
           type: "info",
-          text: "คลิกเพื่อดูเนื้อหา",
+          text: hs.text || "ดูข้อมูล",
           clickHandlerFunc: showMediaModal,
-          clickHandlerArgs: { type: hs.type, content: hs.content, text: hs.text }
+          clickHandlerArgs: { content: hs.content, text: hs.text }
         };
       });
     }
 
-    // ฟังก์ชันแสดง Modal
+    // --- ระบบ Modal (Popup เนื้อหา) ---
     const modal = document.getElementById('mediaModal');
-    const modalContent = document.getElementById('modalContent');
-    document.getElementById('closeModal').addEventListener('click', () => modal.classList.add('hidden'));
+    const modalBox = document.getElementById('modalBox');
+    
+    document.getElementById('closeModal').addEventListener('click', closeModalUI);
+    modal.addEventListener('click', (e) => {
+      if(e.target === modal) closeModalUI(); // ปิดเมื่อคลิกพื้นที่สีดำรอบนอก
+    });
+
+    function closeModalUI() {
+      modal.classList.remove('opacity-100');
+      modalBox.classList.remove('scale-100');
+      modalBox.classList.add('scale-95');
+      setTimeout(() => {
+        modal.classList.add('hidden', 'pointer-events-none');
+        document.getElementById('modalContent').innerHTML = ""; // หยุดเล่นวิดีโอ/เพลง
+      }, 300);
+    }
 
     function showMediaModal(evt, args) {
+      document.getElementById('modalTitle').innerText = args.text || "รายละเอียด";
+      const contentStr = args.content || "";
       let html = '';
-      if(args.type === 'video') {
-        html = `<video controls class="w-full rounded"><source src="${args.content}" type="video/mp4"></video>`;
-      } else if(args.type === 'image') {
-        html = `<img src="${args.content}" class="w-full rounded object-contain max-h-[70vh]">`;
-      } else if(args.type === 'audio') {
-        html = `<audio controls class="w-full mt-4"><source src="${args.content}" type="audio/mpeg"></audio>`;
+
+      // เช็คว่าเป็นลิงก์ภาพ หรือ Youtube หรือข้อความธรรมดา
+      if (contentStr.match(/\.(jpeg|jpg|gif|png)$/i)) {
+        html = `<img src="${contentStr}" class="w-full h-auto max-h-[60vh] object-contain mx-auto">`;
+      } else if (contentStr.includes("youtube.com") || contentStr.includes("youtu.be")) {
+        // แปลง Youtube Link เป็น Embed (ทำแบบลวกๆ สำหรับตัวอย่าง)
+        const videoId = contentStr.split('v=')[1]?.substring(0,11) || contentStr.split('/').pop().substring(0,11);
+        html = `<div class="aspect-w-16 aspect-h-9"><iframe class="w-full h-64 md:h-96 rounded" src="https://www.youtube.com/embed/${videoId}?autoplay=1" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>`;
+      } else {
+        // ถือว่าเป็นข้อความธรรมดา
+        html = `<p class="text-lg text-gray-700 text-left whitespace-pre-wrap">${contentStr}</p>`;
       }
       
-      html += `<p class="mt-4 text-lg">${args.text || ''}</p>`;
-      modalContent.innerHTML = html;
-      modal.classList.remove('hidden');
+      document.getElementById('modalContent').innerHTML = html;
+      
+      // Animate โชว์ Modal
+      modal.classList.remove('hidden', 'pointer-events-none');
+      setTimeout(() => {
+        modal.classList.add('opacity-100');
+        modalBox.classList.remove('scale-95');
+        modalBox.classList.add('scale-100');
+      }, 10);
     }
   </script>
 </body>
