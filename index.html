@@ -84,6 +84,21 @@
     .custom-hotspot:hover span {
       visibility: visible;
     }
+
+    /* Container สำหรับจอวิดีโอ Youtube ฝังใน 360 */
+    .embed-video-hotspot {
+      width: 480px; /* ขนาดความกว้างจอภาพ (ปรับได้) */
+      height: 270px; /* อัตราส่วน 16:9 */
+      transform: translate(-50%, -50%);
+      pointer-events: auto; /* เปิดให้สามารถคลิกเล่น/หยุดวิดีโอได้ */
+    }
+    .embed-video-hotspot iframe {
+      width: 100%; height: 100%; 
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+      border: 4px solid #222;
+      background: #000;
+    }
   </style>
 </head>
 <body>
@@ -201,6 +216,30 @@
           };
         }
         
+        // กรณีเป็นจอทีวี Youtube ฝังใน 360 องศา (Embed)
+        if(hs.type === 'embed') {
+          return {
+            pitch: hs.pitch, 
+            yaw: hs.yaw,
+            cssClass: "embed-video-hotspot",
+            createTooltipFunc: function(hotSpotDiv, args) {
+              // ดึง ID ของวิดีโอ
+              let videoId = args.content.split('v=')[1] || args.content.split('/').pop();
+              const ampersandPosition = videoId?.indexOf('&');
+              if (ampersandPosition !== -1 && ampersandPosition !== undefined) {
+                videoId = videoId.substring(0, ampersandPosition);
+              }
+              // สร้าง iFrame ฝัง Youtube (บังคับ Autoplay, Mute, Loop)
+              hotSpotDiv.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+              
+              // ป้องกันบั๊กลากหน้าจอ 360 ไปด้วยตอนจิ้มหน้าจอวิดีโอ
+              hotSpotDiv.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+              hotSpotDiv.addEventListener('touchstart', function(e) { e.stopPropagation(); });
+            },
+            createTooltipArgs: { content: hs.content }
+          };
+        }
+
         // กรณีเป็นสื่อ (Info) - ใช้ Custom HTML สร้างปุ่ม
         return {
           pitch: hs.pitch, 
