@@ -5,132 +5,123 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin - 360 Virtual Exhibition</title>
   
-  <!-- Tailwind & Font -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
-  
-  <!-- Pannellum -->
+  <!-- Pannellum CSS & JS สำหรับแสดงผลพรีวิว 360 องศา -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
   <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600&display=swap" rel="stylesheet">
+  
   <style>
     body { font-family: 'Chakra Petch', sans-serif; }
-    /* ศูนย์เล็งตรงกลางจอ (Crosshair) */
-    .crosshair {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 20px; height: 20px;
-      pointer-events: none;
-      z-index: 10;
+    /* กล่องพรีวิว 360 */
+    #panorama-preview {
+      width: 100%;
+      height: 400px;
+      border-radius: 0.5rem;
+      background: #e5e7eb;
+      position: relative;
     }
-    .crosshair::before, .crosshair::after {
-      content: ''; position: absolute; background: #ef4444;
-    }
-    .crosshair::before { top: 9px; left: 0; width: 20px; height: 2px; }
-    .crosshair::after { top: 0; left: 9px; width: 2px; height: 20px; }
   </style>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
-  <div class="max-w-7xl mx-auto">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-blue-600">จัดการนิทรรศการ 360°</h1>
-      <a href="index.html" target="_blank" class="text-blue-500 underline hover:text-blue-700">ดูหน้าเว็บแสดงผล</a>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      
-      <!-- ฝั่งซ้าย: ฟอร์มจัดการข้อมูล -->
-      <div class="space-y-6">
+  <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+    
+    <!-- คอลัมน์ซ้าย: จัดการห้อง -->
+    <div class="md:col-span-1 space-y-6">
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h1 class="text-2xl font-bold mb-4 text-blue-600">จัดการนิทรรศการ 360°</h1>
         
-        <!-- 1. อัปโหลดรูปและสร้างห้อง -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-          <h2 class="text-xl font-semibold mb-4 border-b pb-2">1. สร้างห้องใหม่</h2>
-          <input type="text" id="roomName" placeholder="ชื่อห้องนิทรรศการ" class="w-full p-2 border rounded mb-3 bg-gray-50 focus:ring focus:ring-blue-200">
-          <input type="file" id="imageUpload" accept="image/*" class="w-full p-2 border rounded mb-3">
-          <button id="uploadBtn" class="bg-blue-600 text-white font-semibold px-4 py-2 rounded hover:bg-blue-700 w-full transition">อัปโหลดภาพ & สร้างห้อง</button>
-          <p id="uploadStatus" class="text-sm text-gray-500 mt-2 font-medium"></p>
+        <!-- 1. สร้างห้องใหม่ -->
+        <div class="mb-4">
+          <h2 class="text-lg font-semibold mb-2 bg-blue-100 p-2 rounded">1. สร้างห้องใหม่</h2>
+          <input type="text" id="roomName" placeholder="ชื่อห้องนิทรรศการ" class="w-full p-2 border rounded mb-2">
+          <input type="file" id="imageUpload" accept="image/*" class="w-full p-2 border rounded mb-2 text-sm">
+          <button id="uploadBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full transition shadow">อัปโหลดและสร้างห้อง</button>
+          <p id="uploadStatus" class="text-sm text-gray-500 mt-2"></p>
         </div>
-
-        <!-- 2. จัดการห้องและเพิ่ม Hotspot -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-          <div class="flex justify-between items-center mb-4 border-b pb-2">
-            <h2 class="text-xl font-semibold">2. จัดการห้อง & จุดมาร์ค</h2>
-            <!-- Dropdown เลือกห้อง -->
-            <div class="flex gap-2">
-              <select id="roomSelector" class="p-2 border rounded bg-blue-50 text-blue-700 font-semibold focus:outline-none">
-                <option value="">-- เลือกห้องเพื่อแก้ไข --</option>
-              </select>
-              <button id="deleteRoomBtn" class="hidden bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 transition shadow text-sm font-bold">ลบห้องนี้</button>
-            </div>
-          </div>
-
-          <!-- ฟอร์มเพิ่ม Hotspot (จะแสดงเมื่อเลือกห้องแล้ว) -->
-          <div id="hotspotForm" class="opacity-50 pointer-events-none transition">
-            <div class="bg-blue-50 p-3 rounded mb-3 flex items-center justify-between">
-              <div>
-                <p class="text-sm text-gray-600">พิกัดปัจจุบัน</p>
-                <div class="font-mono text-sm font-bold text-blue-800">
-                  Pitch: <span id="displayPitch">0.00</span> | Yaw: <span id="displayYaw">0.00</span>
-                </div>
-              </div>
-              <button id="getCoordsBtn" class="bg-blue-600 text-white text-sm px-3 py-2 rounded hover:bg-blue-700 shadow">
-                ดึงพิกัดจากเป้าเล็ง
-              </button>
-            </div>
-
-            <!-- ซ่อน Input พิกัดไว้ แต่เก็บค่า -->
-            <input type="hidden" id="pitch">
-            <input type="hidden" id="yaw">
-            
-            <label class="block text-sm font-semibold mt-2 mb-1">ประเภทเนื้อหา</label>
-            <select id="mediaType" class="w-full p-2 border rounded mb-3 bg-gray-50">
-              <option value="info">ข้อความ / รูปภาพ / วิดีโอ (Popup)</option>
-              <option value="link">จุดเชื่อมโยง (วาร์ปไปห้องอื่น)</option>
-              <option value="embed">จอทีวีฝังในห้อง (YouTube เล่นอัตโนมัติ)</option>
-            </select>
-
-            <div id="targetRoomContainer" class="hidden">
-              <label class="block text-sm font-semibold mb-1 text-purple-700">เลือกห้องปลายทาง (วาร์ปไปที่)</label>
-              <select id="targetRoomId" class="w-full p-2 border rounded mb-3 border-purple-300"></select>
-            </div>
-
-            <label class="block text-sm font-semibold mb-1">หัวข้อ / ข้อความย่อ</label>
-            <input type="text" id="hsTitle" placeholder="เช่น รายละเอียดผลงาน" class="w-full p-2 border rounded mb-3 bg-gray-50">
-
-            <div id="contentContainer">
-              <label class="block text-sm font-semibold mb-1">รายละเอียด หรือ URL รูป/วิดีโอ</label>
-              <textarea id="mediaContent" rows="3" placeholder="ข้อความยาวๆ, URL รูป, หรือ URL Youtube" class="w-full p-2 border rounded mb-3 bg-gray-50"></textarea>
-            </div>
-
-            <button id="addHotspotBtn" class="bg-green-500 text-white font-semibold px-4 py-2 rounded hover:bg-green-600 w-full transition shadow">บันทึกจุดมาร์ค</button>
-            <p id="hsStatus" class="text-sm text-green-600 mt-2 text-center"></p>
-          </div>
-        </div>
-
       </div>
 
-      <!-- ฝั่งขวา: พรีวิว 360 และ Link แชร์ -->
-      <div class="space-y-4">
+      <!-- กล่องแสดงลิงก์และลบห้อง -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-lg font-semibold mb-2 bg-purple-100 p-2 rounded text-purple-800">แชร์ / จัดการห้อง</h2>
+        <div class="mb-4">
+          <label class="block text-sm font-semibold mb-1">แชร์ลิงก์เข้าห้องนี้โดยตรง:</label>
+          <input type="text" id="shareLink" readonly class="w-full p-2 border rounded bg-gray-100 text-sm mb-2" onclick="this.select()">
+        </div>
+        <button id="deleteRoomBtn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 w-full transition shadow hidden">ลบห้องนี้ทิ้งทั้งหมด</button>
+      </div>
+    </div>
+
+    <!-- คอลัมน์ขวา: พรีวิว และ จุดมาร์ค -->
+    <div class="md:col-span-2 space-y-6">
+      
+      <!-- เลือกห้อง และ พรีวิว -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold">2. เลือกห้องที่ต้องการแก้ไข</h2>
+        </div>
+        <select id="roomSelector" class="w-full p-2 border rounded mb-4 text-lg font-bold text-blue-700 bg-blue-50">
+          <option value="">-- กำลังโหลดข้อมูลห้อง --</option>
+        </select>
+
+        <h2 class="text-lg font-semibold mb-2">พรีวิว 360° (เลื่อนเป้าศูนย์กลางเพื่อหาพิกัด)</h2>
+        <div id="panorama-preview">
+          <!-- เป้าศูนย์เล็ง (Crosshair) -->
+          <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white text-3xl font-bold pointer-events-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] z-10">+</div>
+        </div>
+        <button id="getPitchYawBtn" class="mt-4 bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 w-full font-bold shadow">ดึงพิกัดจากเป้าเล็ง (Center)</button>
+        <div class="text-center mt-2 text-sm text-gray-600">
+          พิกัดปัจจุบัน: Pitch <span id="displayPitch" class="font-bold text-black">0</span>, Yaw <span id="displayYaw" class="font-bold text-black">0</span>
+        </div>
+      </div>
+
+      <!-- ฟอร์มสร้าง/แก้ไขจุดมาร์ค -->
+      <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-lg font-semibold mb-4 bg-green-100 p-2 rounded text-green-800">3. เพิ่ม/แก้ไขจุดมาร์ค (Hotspot)</h2>
         
-        <!-- กล่อง Link แชร์ -->
-        <div class="bg-white p-4 rounded-lg shadow-md border-l-4 border-green-500">
-          <h3 class="text-sm font-bold text-gray-600 mb-1">แชร์ลิงก์เข้าห้องนี้โดยตรง:</h3>
-          <div class="flex">
-            <input type="text" id="shareLink" readonly class="w-full p-2 bg-gray-100 border rounded-l text-sm text-gray-700 font-mono focus:outline-none">
-            <button id="copyBtn" class="bg-gray-700 text-white px-4 rounded-r hover:bg-gray-800 transition text-sm">คัดลอก</button>
+        <!-- ซ่อน Input พิกัดไว้ใช้ส่งค่า -->
+        <input type="hidden" id="pitch">
+        <input type="hidden" id="yaw">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-semibold mb-1">ประเภทจุดมาร์ค</label>
+            <select id="mediaType" class="w-full p-2 border rounded bg-gray-50">
+              <option value="info">ข้อความ / รูปภาพ (Popup)</option>
+              <option value="embed">จอทีวีฝังในห้อง (YouTube เล่นอัตโนมัติ)</option>
+              <option value="link">เชื่อมโยงไปยังห้องอื่น (ประตูมิติ)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">ชื่อมาร์ค (Hover text)</label>
+            <input type="text" id="hsTitle" placeholder="เช่น รูปภาพประวัติศาสตร์" class="w-full p-2 border rounded bg-gray-50">
           </div>
         </div>
 
-        <!-- ตัวพรีวิว 360 องศา -->
-        <div class="bg-white p-2 rounded-lg shadow-md relative">
-          <div id="panorama-preview" class="w-full h-[500px] bg-gray-200 rounded relative overflow-hidden">
-            <!-- ศูนย์เล็ง -->
-            <div class="crosshair"></div>
-          </div>
-          <p class="text-center text-sm text-gray-500 mt-2">หมุนภาพไปยังจุดที่ต้องการ แล้วกดปุ่ม <b>"ดึงพิกัดจากเป้าเล็ง"</b></p>
+        <div id="targetRoomContainer" class="hidden">
+          <label class="block text-sm font-semibold mb-1">เลือกห้องปลายทาง (วาร์ปไปไหน)</label>
+          <select id="targetRoomId" class="w-full p-2 border rounded mb-3 bg-gray-50"></select>
         </div>
 
+        <div id="contentContainer">
+          <label class="block text-sm font-semibold mb-1">รายละเอียด หรือ URL รูป/วิดีโอ</label>
+          <textarea id="mediaContent" rows="3" placeholder="ข้อความยาวๆ, URL รูป, หรือ URL Youtube" class="w-full p-2 border rounded mb-3 bg-gray-50"></textarea>
+        </div>
+
+        <div class="flex gap-2">
+          <button id="addHotspotBtn" class="bg-green-500 text-white font-semibold px-4 py-2 rounded hover:bg-green-600 w-full transition shadow">บันทึกจุดมาร์ค</button>
+          <button id="cancelEditBtn" class="hidden bg-gray-500 text-white font-semibold px-4 py-2 rounded hover:bg-gray-600 w-1/3 transition shadow">ยกเลิก</button>
+        </div>
+        <p id="hsStatus" class="text-sm text-green-600 mt-2 text-center"></p>
+
+        <!-- รายการจุดมาร์ค -->
+        <div class="mt-6 border-t border-gray-200 pt-4">
+          <h3 class="text-md font-bold text-gray-700 mb-3">📌 รายการจุดมาร์คในห้องนี้</h3>
+          <div id="hotspotsList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <!-- รายการจะถูกสร้างด้วย JS -->
+          </div>
+        </div>
       </div>
 
     </div>
@@ -155,6 +146,7 @@
 
     let viewer = null;
     let currentRooms = {};
+    let editingHotspotId = null;
 
     // 1. ดึงข้อมูลห้องทั้งหมดมาใส่ Dropdown
     onValue(ref(db, 'exhibition_rooms'), (snapshot) => {
@@ -162,57 +154,49 @@
       const selector = document.getElementById('roomSelector');
       const targetSelector = document.getElementById('targetRoomId');
       
-      // เก็บค่าเก่าที่เลือกไว้
-      const selectedId = selector.value;
-      
-      selector.innerHTML = '<option value="">-- เลือกห้องเพื่อแก้ไข --</option>';
-      targetSelector.innerHTML = '<option value="">-- เลือกห้อง --</option>';
+      const currentSelection = selector.value;
+      selector.innerHTML = '<option value="">-- เลือกห้องที่ต้องการแก้ไข --</option>';
+      targetSelector.innerHTML = '<option value="">-- เลือกห้องปลายทาง --</option>';
 
-      Object.keys(currentRooms).forEach(key => {
-        const option = `<option value="${key}">${currentRooms[key].name}</option>`;
-        selector.innerHTML += option;
-        targetSelector.innerHTML += option;
+      Object.keys(currentRooms).forEach(roomId => {
+        const name = currentRooms[roomId].name;
+        selector.innerHTML += `<option value="${roomId}">${name}</option>`;
+        targetSelector.innerHTML += `<option value="${roomId}">${name}</option>`;
       });
 
-      if(selectedId && currentRooms[selectedId]) {
-        selector.value = selectedId;
+      if(currentSelection && currentRooms[currentSelection]) {
+        selector.value = currentSelection;
       }
     });
 
-    // 2. เมื่อเลือกห้อง -> โหลดภาพลง พรีวิว
+    // 2. เมื่อเลือกห้อง ให้โหลดภาพ 360 ขึ้นมาพรีวิว และโหลดรายการมาร์ค
     document.getElementById('roomSelector').addEventListener('change', (e) => {
       const roomId = e.target.value;
-      const form = document.getElementById('hotspotForm');
+      if(viewer) viewer.destroy(); // ลบวิวเก่าทิ้งก่อน
       
-      if (!roomId) {
-        form.classList.add('opacity-50', 'pointer-events-none');
-        document.getElementById('deleteRoomBtn').classList.add('hidden');
-        if(viewer) viewer.destroy();
+      resetForm(); // เคลียร์ฟอร์มเผื่อค้างอยู่
+
+      const delBtn = document.getElementById('deleteRoomBtn');
+
+      if(!roomId) {
+        document.getElementById('hotspotsList').innerHTML = '';
         document.getElementById('shareLink').value = '';
+        delBtn.classList.add('hidden');
         return;
       }
 
-      form.classList.remove('opacity-50', 'pointer-events-none');
-      document.getElementById('deleteRoomBtn').classList.remove('hidden');
       const room = currentRooms[roomId];
-      
-      // สร้าง Link แชร์แบบปลอดภัย ป้องกันบั๊ก adminindex
-      let currentUrl = window.location.href.split('?')[0]; // ตัดพารามิเตอร์ทิ้งก่อน
-      // จัดการกับ URL ท้ายสุด
-      if (currentUrl.endsWith('admin.html')) {
-        currentUrl = currentUrl.slice(0, -10);
-      } else if (currentUrl.endsWith('admin')) {
-        currentUrl = currentUrl.slice(0, -5);
-      }
-      // เติม / ถ้าหากยังไม่มี
-      if (!currentUrl.endsWith('/')) {
-        currentUrl += '/';
-      }
-      document.getElementById('shareLink').value = `${currentUrl}index.html?room=${roomId}`;
+      delBtn.classList.remove('hidden');
 
-      // เคลียร์ Viewer เก่าแล้วโหลดใหม่
-      if(viewer) viewer.destroy();
-      
+      // สร้างลิงก์สำหรับแชร์ (แก้ปัญหา URL 404)
+      let currentUrl = window.location.href;
+      // ตัดคำว่า admin.html (ถ้ามี) แล้วแทนที่ด้วย index.html
+      let baseUrl = currentUrl.replace(/\/[^\/]*$/, '/index.html'); 
+      if (!currentUrl.includes('/')) {
+        baseUrl = 'index.html'; // กรณีเปิดรันไฟล์เฉยๆ
+      }
+      document.getElementById('shareLink').value = `${baseUrl}?room=${roomId}`;
+
       // แปลง Hotspots เดิมมาแสดงในพรีวิว
       const hotSpotsDisplay = [];
       if(room.hotspots) {
@@ -225,62 +209,133 @@
         });
       }
 
+      // โหลดรายการลงลิสต์
+      renderHotspotList(roomId, room.hotspots);
+
       viewer = pannellum.viewer('panorama-preview', {
         type: "equirectangular",
         panorama: room.imageUrl,
         autoLoad: true,
+        hfov: 100, // ปรับมุมกล้องให้ภาพไม่บิดเบี้ยว
         hotSpots: hotSpotsDisplay
       });
-
-      // อัปเดตพิกัดแบบ Real-time
-      viewer.on('mouseup', updateDisplayCoords);
-      viewer.on('touchend', updateDisplayCoords);
     });
 
-    // ฟังก์ชันอัปเดตตัวเลขพิกัดบนหน้าจอ
-    function updateDisplayCoords() {
-      if(!viewer) return;
-      document.getElementById('displayPitch').innerText = viewer.getPitch().toFixed(2);
-      document.getElementById('displayYaw').innerText = viewer.getYaw().toFixed(2);
+    // ฟังก์ชันเคลียร์ฟอร์ม
+    function resetForm() {
+      editingHotspotId = null;
+      document.getElementById('hsTitle').value = "";
+      document.getElementById('mediaContent').value = "";
+      document.getElementById('addHotspotBtn').innerText = "บันทึกจุดมาร์ค";
+      document.getElementById('addHotspotBtn').classList.replace('bg-yellow-500', 'bg-green-500');
+      document.getElementById('addHotspotBtn').classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+      document.getElementById('cancelEditBtn').classList.add('hidden');
     }
 
-    // ปุ่มดึงพิกัด
-    document.getElementById('getCoordsBtn').addEventListener('click', () => {
-      if(!viewer) return;
-      const p = viewer.getPitch().toFixed(2);
-      const y = viewer.getYaw().toFixed(2);
-      document.getElementById('pitch').value = p;
-      document.getElementById('yaw').value = y;
-      
-      // กระพริบสีเขียวให้รู้ว่ากดติดแล้ว
-      const btn = document.getElementById('getCoordsBtn');
-      btn.classList.add('bg-green-600');
-      btn.innerText = "ล็อคพิกัดแล้ว!";
-      setTimeout(() => {
-        btn.classList.remove('bg-green-600');
-        btn.innerText = "ดึงพิกัดจากเป้าเล็ง";
-      }, 1000);
-    });
+    document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
 
-    // สลับฟอร์มตามประเภทเนื้อหา (Info vs Link)
+    // ฟังก์ชันเรนเดอร์รายการจุดมาร์ค
+    function renderHotspotList(roomId, hotspots) {
+      const list = document.getElementById('hotspotsList');
+      list.innerHTML = '';
+      if (!hotspots) {
+        list.innerHTML = '<p class="text-sm text-gray-500 text-center py-2">ยังไม่มีจุดมาร์คในห้องนี้</p>';
+        return;
+      }
+
+      Object.entries(hotspots).forEach(([hsId, hs]) => {
+        const div = document.createElement('div');
+        div.className = 'flex justify-between items-center bg-white p-2 rounded border border-gray-200 text-sm shadow-sm';
+        
+        const info = document.createElement('div');
+        let typeIcon = hs.type === 'link' ? '🚪' : hs.type === 'embed' ? '📺' : 'ℹ️';
+        info.innerHTML = `<strong>${typeIcon} ${hs.text || 'ไม่มีชื่อ'}</strong> <br><span class="text-xs text-gray-500">Pitch: ${hs.pitch.toFixed(1)}, Yaw: ${hs.yaw.toFixed(1)}</span>`;
+        
+        const actions = document.createElement('div');
+        actions.className = 'flex gap-2';
+        
+        const editBtn = document.createElement('button');
+        editBtn.className = 'text-blue-600 hover:text-blue-800 font-bold px-2';
+        editBtn.innerText = 'แก้ไข';
+        editBtn.onclick = () => {
+          editingHotspotId = hsId;
+          document.getElementById('pitch').value = hs.pitch;
+          document.getElementById('yaw').value = hs.yaw;
+          document.getElementById('displayPitch').innerText = hs.pitch.toFixed(2);
+          document.getElementById('displayYaw').innerText = hs.yaw.toFixed(2);
+          
+          document.getElementById('mediaType').value = hs.type;
+          document.getElementById('mediaType').dispatchEvent(new Event('change'));
+          
+          document.getElementById('hsTitle').value = hs.text || '';
+          if(hs.type === 'link') {
+            document.getElementById('targetRoomId').value = hs.targetRoomId || '';
+          } else {
+            document.getElementById('mediaContent').value = hs.content || '';
+          }
+          
+          document.getElementById('addHotspotBtn').innerText = 'บันทึกการแก้ไข';
+          
+          // เปลี่ยนปุ่มเป็นสีเหลืองเมื่อแก้ไข
+          if(document.getElementById('addHotspotBtn').classList.contains('bg-green-500')) {
+            document.getElementById('addHotspotBtn').classList.replace('bg-green-500', 'bg-yellow-500');
+            document.getElementById('addHotspotBtn').classList.replace('hover:bg-green-600', 'hover:bg-yellow-600');
+          }
+          
+          document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+          if(viewer) {
+            viewer.setPitch(hs.pitch);
+            viewer.setYaw(hs.yaw);
+          }
+        };
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'text-red-600 hover:text-red-800 font-bold px-2';
+        delBtn.innerText = 'ลบ';
+        delBtn.onclick = async () => {
+          if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบจุดมาร์คนี้?')) {
+            try {
+              await remove(ref(db, `exhibition_rooms/${roomId}/hotspots/${hsId}`));
+              document.getElementById('roomSelector').dispatchEvent(new Event('change'));
+            } catch (err) {
+              alert("ลบไม่สำเร็จ!");
+            }
+          }
+        };
+
+        actions.appendChild(editBtn);
+        actions.appendChild(delBtn);
+        div.appendChild(info);
+        div.appendChild(actions);
+        list.appendChild(div);
+      });
+    }
+
+    // สลับฟอร์มตามประเภทจุดมาร์ค
     document.getElementById('mediaType').addEventListener('change', (e) => {
-      const type = e.target.value;
-      if (type === 'link') {
+      if(e.target.value === 'link') {
         document.getElementById('targetRoomContainer').classList.remove('hidden');
         document.getElementById('contentContainer').classList.add('hidden');
       } else {
         document.getElementById('targetRoomContainer').classList.add('hidden');
         document.getElementById('contentContainer').classList.remove('hidden');
-        
-        if (type === 'embed') {
-          document.getElementById('mediaContent').placeholder = "ใส่ URL วิดีโอ YouTube เท่านั้น (เช่น https://youtu.be/...)";
-        } else {
-          document.getElementById('mediaContent').placeholder = "ข้อความยาวๆ, URL รูป, หรือ URL Youtube";
-        }
       }
     });
 
-    // 3. บันทึก Hotspot
+    // ปุ่มดึงพิกัดจากหน้าจอ 360
+    document.getElementById('getPitchYawBtn').addEventListener('click', () => {
+      if(!viewer) return alert("กรุณาเลือกห้องก่อน");
+      const pitch = viewer.getPitch();
+      const yaw = viewer.getYaw();
+      
+      document.getElementById('pitch').value = pitch;
+      document.getElementById('yaw').value = yaw;
+      document.getElementById('displayPitch').innerText = pitch.toFixed(2);
+      document.getElementById('displayYaw').innerText = yaw.toFixed(2);
+    });
+
+    // ปุ่มบันทึก/อัปเดต จุดมาร์ค
     document.getElementById('addHotspotBtn').addEventListener('click', async () => {
       const roomId = document.getElementById('roomSelector').value;
       const type = document.getElementById('mediaType').value;
@@ -302,34 +357,60 @@
       }
 
       try {
-        const newHsRef = push(ref(db, `exhibition_rooms/${roomId}/hotspots`));
-        await set(newHsRef, hotspotData);
+        if (editingHotspotId) {
+          // โหมดแก้ไข
+          const hsRef = ref(db, `exhibition_rooms/${roomId}/hotspots/${editingHotspotId}`);
+          await set(hsRef, hotspotData); 
+          document.getElementById('hsStatus').innerText = "อัปเดตจุดมาร์คเรียบร้อย!";
+        } else {
+          // โหมดเพิ่มใหม่
+          const newHsRef = push(ref(db, `exhibition_rooms/${roomId}/hotspots`));
+          await set(newHsRef, hotspotData);
+          document.getElementById('hsStatus').innerText = "เพิ่มจุดมาร์คเรียบร้อย!";
+        }
         
-        const status = document.getElementById('hsStatus');
-        status.innerText = "เพิ่มจุดมาร์คเรียบร้อย!";
-        setTimeout(() => status.innerText = "", 3000);
+        setTimeout(() => { document.getElementById('hsStatus').innerText = ""; }, 3000);
         
-        // รีเซ็ตฟอร์มเนื้อหา
-        document.getElementById('hsTitle').value = "";
-        document.getElementById('mediaContent').value = "";
+        resetForm();
+        // โหลดวิวใหม่เพื่อให้จุดอัปเดต
+        document.getElementById('roomSelector').dispatchEvent(new Event('change'));
+
       } catch (err) {
         alert("เกิดข้อผิดพลาด");
         console.error(err);
       }
     });
 
-    // 4. อัปโหลดและสร้างห้อง (เหมือนเดิม แต่ใช้ Preset ที่ระบุ)
+    // ปุ่มลบห้อง
+    document.getElementById('deleteRoomBtn').addEventListener('click', async () => {
+      const roomId = document.getElementById('roomSelector').value;
+      if(!roomId) return;
+      if(confirm('🚨 คำเตือน: คุณแน่ใจหรือไม่ว่าต้องการลบห้องนี้? ข้อมูลและจุดมาร์คทั้งหมดในห้องนี้จะหายไปแบบกู้คืนไม่ได้!')) {
+        try {
+          await remove(ref(db, `exhibition_rooms/${roomId}`));
+          alert('ลบห้องเรียบร้อยแล้ว');
+          document.getElementById('roomSelector').value = "";
+          document.getElementById('roomSelector').dispatchEvent(new Event('change'));
+        } catch (error) {
+          alert('เกิดข้อผิดพลาดในการลบห้อง: ' + error);
+        }
+      }
+    });
+
+    // อัปโหลดขึ้น Cloudinary
     document.getElementById('uploadBtn').addEventListener('click', async () => {
       const file = document.getElementById('imageUpload').files[0];
       const roomName = document.getElementById('roomName').value;
       if (!file || !roomName) return alert("กรุณาใส่ชื่อห้องและเลือกไฟล์");
 
       const status = document.getElementById('uploadStatus');
-      status.innerText = "กำลังอัปโหลดไปยัง Cloudinary... โปรดรอสักครู่";
+      status.innerText = "กำลังอัปโหลดรูปไปยัง Cloudinary... (อาจใช้เวลาสักครู่)";
+      document.getElementById('uploadBtn').disabled = true;
+      document.getElementById('uploadBtn').classList.add('opacity-50');
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', 'khonkaen_preset');
+      formData.append('upload_preset', 'khonkaen_preset'); // ใช้ Preset ที่ผู้ใช้ให้มา
 
       try {
         const res = await fetch('https://api.cloudinary.com/v1_1/dk0ypev4m/image/upload', {
@@ -338,56 +419,30 @@
         });
         const data = await res.json();
         
+        if (data.error) {
+           throw new Error(data.error.message);
+        }
+
+        // บันทึกข้อมูลห้องลง Firebase
         const roomRef = push(ref(db, 'exhibition_rooms'));
         await set(roomRef, {
           name: roomName,
-          imageUrl: data.secure_url
+          imageUrl: data.secure_url,
+          hotspots: [] 
         });
         
-        status.innerText = `สร้างห้อง "${roomName}" สำเร็จ! กรุณาเลือกจาก Dropdown ด้านล่าง`;
-        status.className = "text-sm text-green-600 mt-2 font-bold";
-        
+        status.innerHTML = `<span class="text-green-600 font-bold">สร้างห้องสำเร็จ! สามารถเลือกห้องจากเมนูด้านขวาได้เลย</span>`;
         document.getElementById('roomName').value = "";
         document.getElementById('imageUpload').value = "";
       } catch (err) {
-        status.innerText = "เกิดข้อผิดพลาดในการอัปโหลด";
-        status.className = "text-sm text-red-600 mt-2 font-bold";
+        status.innerHTML = `<span class="text-red-500">เกิดข้อผิดพลาด: ${err.message}</span>`;
+        console.error(err);
+      } finally {
+        document.getElementById('uploadBtn').disabled = false;
+        document.getElementById('uploadBtn').classList.remove('opacity-50');
       }
     });
 
-    // ปุ่ม Copy Link
-    document.getElementById('copyBtn').addEventListener('click', () => {
-      const linkInput = document.getElementById('shareLink');
-      linkInput.select();
-      document.execCommand('copy');
-      const btn = document.getElementById('copyBtn');
-      btn.innerText = "คัดลอกแล้ว!";
-      btn.classList.replace('bg-gray-700', 'bg-green-600');
-      setTimeout(() => {
-        btn.innerText = "คัดลอก";
-        btn.classList.replace('bg-green-600', 'bg-gray-700');
-      }, 2000);
-    });
-
-    // 5. ระบบลบห้อง
-    document.getElementById('deleteRoomBtn').addEventListener('click', async () => {
-      const roomId = document.getElementById('roomSelector').value;
-      if(!roomId) return;
-
-      const confirmDelete = confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบห้อง "${currentRooms[roomId].name}"?\nการกระทำนี้ไม่สามารถกู้คืนได้ และจุดมาร์คทั้งหมดในห้องจะหายไป!`);
-      
-      if(confirmDelete) {
-        try {
-          await remove(ref(db, `exhibition_rooms/${roomId}`));
-          alert("ลบห้องเรียบร้อยแล้ว");
-          document.getElementById('roomSelector').value = "";
-          document.getElementById('roomSelector').dispatchEvent(new Event('change'));
-        } catch (err) {
-          alert("เกิดข้อผิดพลาดในการลบห้อง");
-          console.error(err);
-        }
-      }
-    });
   </script>
 </body>
 </html>
