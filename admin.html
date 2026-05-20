@@ -190,9 +190,19 @@
       form.classList.remove('opacity-50', 'pointer-events-none');
       const room = currentRooms[roomId];
       
-      // สร้าง Link แชร์
-      const baseUrl = window.location.href.replace('admin.html', '').split('?')[0];
-      document.getElementById('shareLink').value = `${baseUrl}index.html?room=${roomId}`;
+      // สร้าง Link แชร์แบบปลอดภัย ป้องกันบั๊ก adminindex
+      let currentUrl = window.location.href.split('?')[0]; // ตัดพารามิเตอร์ทิ้งก่อน
+      // จัดการกับ URL ท้ายสุด
+      if (currentUrl.endsWith('admin.html')) {
+        currentUrl = currentUrl.slice(0, -10);
+      } else if (currentUrl.endsWith('admin')) {
+        currentUrl = currentUrl.slice(0, -5);
+      }
+      // เติม / ถ้าหากยังไม่มี
+      if (!currentUrl.endsWith('/')) {
+        currentUrl += '/';
+      }
+      document.getElementById('shareLink').value = `${currentUrl}index.html?room=${roomId}`;
 
       // เคลียร์ Viewer เก่าแล้วโหลดใหม่
       if(viewer) viewer.destroy();
